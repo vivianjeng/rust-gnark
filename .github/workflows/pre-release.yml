@@ -129,10 +129,12 @@ jobs:
                   if [ -n "${{ matrix.ndk_clang }}" ]; then
                     CC_VAL="${{ steps.setup-ndk.outputs.ndk-path }}/toolchains/llvm/prebuilt/linux-x86_64/bin/${{ matrix.ndk_clang }}"
                   fi
+                  if [ -n "$CC_VAL" ]; then
+                    export CC="$CC_VAL"
+                  fi
                   CGO_ENABLED=1 \
                   GOOS=${{ matrix.goos }} \
                   GOARCH=${{ matrix.goarch }} \
-                  ${CC_VAL:+CC="$CC_VAL"} \
                   go build \
                     -buildmode=c-archive \
                     -ldflags="${GO_LDFLAGS}" \
