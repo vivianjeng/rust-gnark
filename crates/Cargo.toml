@@ -1,0 +1,18 @@
+[package]
+name = "rust-gnark"
+version = "0.1.0"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/zkmopro/rust-gnark"
+documentation = "https://zkmopro.org/"
+homepage = "https://zkmopro.org/"
+description = "Rust bindings for the gnark Groth16 BN254 proving system"
+include = ["src/**", "build.rs", "Cargo.toml", "prebuilt/**"]
+
+[lib]
+
+[dependencies]
+anyhow = "1.0"
+
+[build-dependencies]
+bindgen = "0.70"
