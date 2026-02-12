@@ -47,17 +47,15 @@ fn main() {
         let go_envs = detect_go_cross_env(&target, &out_dir);
 
         let mut cmd = Command::new("go");
-        cmd.current_dir(&go_dir)
-            .env("CGO_ENABLED", "1")
-            .args([
-                "build",
-                "-buildmode=c-archive",
-                "-ldflags=-s -w",
-                "-gcflags=all=-l -B",
-                "-o",
-                dest.to_str().expect("Invalid output path"),
-                ".",
-            ]);
+        cmd.current_dir(&go_dir).env("CGO_ENABLED", "1").args([
+            "build",
+            "-buildmode=c-archive",
+            "-ldflags=-s -w",
+            "-gcflags=all=-l -B",
+            "-o",
+            dest.to_str().expect("Invalid output path"),
+            ".",
+        ]);
 
         for (k, v) in &go_envs {
             cmd.env(k, v);
@@ -216,9 +214,8 @@ fn create_apple_cc_wrapper(out_dir: &Path, sdk: &str, clang_target: &str) -> Str
     // multiple iOS targets in the same workspace.
     let script_name = format!("cc_wrapper_{sdk}.sh");
     let script_path = out_dir.join(&script_name);
-    let script_content = format!(
-        "#!/bin/sh\nexec xcrun -sdk {sdk} clang -target {clang_target} \"$@\"\n"
-    );
+    let script_content =
+        format!("#!/bin/sh\nexec xcrun -sdk {sdk} clang -target {clang_target} \"$@\"\n");
 
     std::fs::write(&script_path, script_content)
         .unwrap_or_else(|e| panic!("Failed to write CC wrapper {script_name}: {e}"));

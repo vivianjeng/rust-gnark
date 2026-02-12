@@ -107,12 +107,8 @@ pub fn groth16_prove(
                 ))
             } else {
                 Ok(Groth16ProofResult {
-                    proof: CStr::from_ptr(proof_ptr)
-                        .to_string_lossy()
-                        .into_owned(),
-                    public_inputs: CStr::from_ptr(pub_ptr)
-                        .to_string_lossy()
-                        .into_owned(),
+                    proof: CStr::from_ptr(proof_ptr).to_string_lossy().into_owned(),
+                    public_inputs: CStr::from_ptr(pub_ptr).to_string_lossy().into_owned(),
                 })
             }
         } else {
