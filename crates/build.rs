@@ -48,8 +48,7 @@ fn main() {
             "prebuilt/{target}/libgnark.h not found. Rebuild prebuilt libraries."
         );
 
-        std::fs::copy(&lib_src, out_dir.join(lib_name))
-            .expect("Failed to copy prebuilt lib");
+        std::fs::copy(&lib_src, out_dir.join(lib_name)).expect("Failed to copy prebuilt lib");
         std::fs::copy(&header_src, out_dir.join("libgnark.h"))
             .expect("Failed to copy prebuilt header");
     } else if go_dir.exists() {
