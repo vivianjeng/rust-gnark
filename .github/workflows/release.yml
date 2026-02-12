@@ -40,17 +40,22 @@ jobs:
                   echo "=== All prebuilt targets ==="
                   ls -lR crates/prebuilt/
 
-            - name: Create release archive
+            - name: Create release archives
               run: |
                   tar -czf prebuilt-all.tar.gz -C crates prebuilt
-                  echo "Archive size: $(du -sh prebuilt-all.tar.gz | cut -f1)"
+                  echo "prebuilt-all.tar.gz: $(du -sh prebuilt-all.tar.gz | cut -f1)"
+                  for target_dir in crates/prebuilt/*/; do
+                    target=$(basename "$target_dir")
+                    tar -czf "prebuilt-${target}.tar.gz" -C "crates/prebuilt/$target" .
+                    echo "prebuilt-${target}.tar.gz: $(du -sh "prebuilt-${target}.tar.gz" | cut -f1)"
+                  done
 
             - name: Verify crate packaging
-              run: cargo package --list --allow-dirty -p rust-gnark --manifest-path crates/Cargo.toml
+              run: cargo package --list -p rust-gnark --manifest-path crates/Cargo.toml
 
             - name: Publish to crates.io
               if: startsWith(github.ref, 'refs/tags/')
-              run: cargo publish --allow-dirty -p rust-gnark --manifest-path crates/Cargo.toml
+              run: cargo publish -p rust-gnark --manifest-path crates/Cargo.toml
               env:
                   CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
 
@@ -58,7 +63,9 @@ jobs:
               if: startsWith(github.ref, 'refs/tags/')
               uses: softprops/action-gh-release@v2
               with:
-                  files: prebuilt-all.tar.gz
+                  files: |
+                      prebuilt-all.tar.gz
+                      prebuilt-*.tar.gz
                   generate_release_notes: true
                   body: |
                       ## rust-gnark ${{ github.ref_name }}

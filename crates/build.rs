@@ -1,11 +1,11 @@
 //! Build script for rust-gnark.
 //!
-//! Two modes:
-//! 1. **Published crate** (`prebuilt/<target>/` exists): Links the bundled library and header.
-//!    Downstream consumers never need Go installed.
+//! Three resolution tiers:
+//! 1. **Local prebuilt** (`prebuilt/<target>/` exists): Uses pre-placed library and header.
 //! 2. **Development** (`go/` directory exists): Compiles Go from source.
-//!    Requires Go toolchain (1.24+). Cross-compilation env vars are auto-detected
-//!    from the Rust `TARGET`.
+//!    Requires Go toolchain (1.24+).
+//! 3. **Download** (published crate): Downloads prebuilt library from the GitHub Release
+//!    matching the crate version. No Go toolchain required.
 //!
 //! Android targets use `-buildmode=c-shared` (`.so`) because Go does not support
 //! `c-archive` on `GOOS=android`. All other targets use `c-archive` (`.a`).
@@ -14,6 +14,7 @@
 //! environment variable (format: `"GOOS=ios;GOARCH=arm64;CC=/path/to/cc"`).
 
 use std::env;
+use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
@@ -76,11 +77,7 @@ fn main() {
         );
         assert!(status.success(), "Go build failed with status: {status}");
     } else {
-        panic!(
-            "Neither prebuilt/{target} nor go/ directory found. \
-             If consuming as a crate, prebuilt libs should be bundled. \
-             If developing, ensure go/ directory exists and Go is installed."
-        );
+        download_prebuilt(&target, lib_name, &out_dir);
     }
 
     let header_path = out_dir.join("libgnark.h");
@@ -100,6 +97,62 @@ fn main() {
         println!("cargo:rustc-link-lib=static=gnark");
     }
     link_platform_deps(&target);
+}
+
+const GITHUB_REPO: &str = "FluxePay/rust-gnark";
+
+/// Download a prebuilt library from the GitHub Release matching the crate version.
+///
+/// Downloads `prebuilt-{target}.tar.gz` from the release, extracts the library
+/// and header into `out_dir`.
+///
+/// The download URL can be overridden via `RUST_GNARK_PREBUILT_URL` env var
+/// (must point to the `.tar.gz` file directly).
+fn download_prebuilt(target: &str, lib_name: &str, out_dir: &Path) {
+    let version = env::var("CARGO_PKG_VERSION").expect("CARGO_PKG_VERSION not set");
+    let url = env::var("RUST_GNARK_PREBUILT_URL").unwrap_or_else(|_| {
+        format!(
+            "https://github.com/{GITHUB_REPO}/releases/download/v{version}/prebuilt-{target}.tar.gz"
+        )
+    });
+
+    println!("cargo:warning=Downloading prebuilt gnark library from {url}");
+
+    let tar_gz_path = out_dir.join(format!("prebuilt-{target}.tar.gz"));
+
+    let resp = ureq::get(&url).call().unwrap_or_else(|e| {
+        panic!(
+            "Failed to download prebuilt library from {url}: {e}\n\
+             Either install Go 1.24+ and place go/ directory adjacent to the crate,\n\
+             or ensure a GitHub Release exists for v{version}."
+        )
+    });
+
+    let mut file =
+        std::fs::File::create(&tar_gz_path).expect("Failed to create temp file for download");
+    let mut reader = resp.into_reader();
+    std::io::copy(&mut reader, &mut file).expect("Failed to write downloaded archive");
+    file.flush().expect("Failed to flush downloaded archive");
+
+    let status = Command::new("tar")
+        .args([
+            "xzf",
+            tar_gz_path.to_str().unwrap(),
+            "-C",
+            out_dir.to_str().unwrap(),
+        ])
+        .status()
+        .expect("Failed to run tar. Is tar installed?");
+    assert!(status.success(), "tar extraction failed");
+
+    assert!(
+        out_dir.join(lib_name).exists(),
+        "Downloaded archive missing {lib_name}"
+    );
+    assert!(
+        out_dir.join("libgnark.h").exists(),
+        "Downloaded archive missing libgnark.h"
+    );
 }
 
 /// Auto-detect Go cross-compilation environment from the Rust `TARGET` triple.
